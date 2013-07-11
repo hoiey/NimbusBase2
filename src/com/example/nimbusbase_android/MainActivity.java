@@ -12,6 +12,9 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException;
@@ -35,14 +38,19 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.RemoteException;
 import android.provider.MediaStore;
+import android.support.v4.widget.SimpleCursorAdapter;
 import android.accounts.AccountManager;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.view.Menu;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ListAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -59,20 +67,24 @@ public class MainActivity extends Activity {
 
 	public Button btn;
 	public TextView tv;
+	public Button listp;
 	
 	private String mFileId;
+	
+	DataBaseAdapter dataBaseAdapter;
+	
+	LinearLayout				m_LinearLayout	= null;
+	/* 列表视图-显示数据库中的数据 */
+	ListView					m_ListView		= null;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_main);
-		
+		setContentView(R.layout.activity_main);	
+	
 		tv = (TextView)findViewById(R.id.textView1);
-		btn = (Button)findViewById(R.id.button1);
-		
-		tv.setText(mFileId);
-		
-
+		btn = (Button)findViewById(R.id.button1);	
+		listp = (Button)findViewById(R.id.button2);
 		
 		btn.setOnClickListener(new View.OnClickListener() {
 			
@@ -80,8 +92,25 @@ public class MainActivity extends Activity {
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
 				getUserAccountAndProcessFile();
+
 			}
 		});
+		
+   		dataBaseAdapter = new DataBaseAdapter(this);
+
+		
+		listp.setOnClickListener(new View.OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				// TODO Auto-generated method stub
+				 Intent intent = new Intent();
+			     intent.setClass(MainActivity.this, ListPage.class);
+			     startActivity(intent);				
+			}
+		});
+		
+       
 	}
 	
 	 @SuppressWarnings("deprecation")
@@ -105,6 +134,9 @@ public class MainActivity extends Activity {
 	           //readFileFromDrive();
 	           tv.setText("REQUEST_ACCOUNT_PICKER");
 	           
+
+				//启动Activity
+	           
 	         }
 	       }
 	       break;
@@ -117,12 +149,7 @@ public class MainActivity extends Activity {
 	             startActivityForResult(credential.newChooseAccountIntent(), REQUEST_ACCOUNT_PICKER);
 	           }	    	
 	    	break;
-	     case CAPTURE_IMAGE:
-	         if (resultCode == Activity.RESULT_OK) {
-	        	 readFileFromDrive();
-	           //saveFileToDrive();
-	         }
-	   }
+	     }
 	   
 	}
 	 
@@ -198,7 +225,7 @@ public class MainActivity extends Activity {
 							Children.List request_c = service.children().list(file1.getId());
 							
 							ChildList children = request_c.execute();
-							
+							SQLiteDatabase db =  dataBaseAdapter.getReadableDatabase();
 						      for (ChildReference child : children.getItems()) {
 						    	  
 									File file2= service.files().get(child.getId()).execute();
@@ -206,9 +233,18 @@ public class MainActivity extends Activity {
 										  HttpResponse resp = service.getRequestFactory().buildGetRequest(new GenericUrl(file2.getDownloadUrl())).execute();
 										  InputStream stream = resp.getContent();
 										  StringBuilder sb = inputStreamToStringBuilder(stream);
-										  showText(sb);
+										  try {
+											JSONObject jsonobj = new JSONObject(sb.toString());
+											MetaData metaData = new MetaData(jsonobj);
+											dataBaseAdapter.insertData(metaData);
+										} catch (JSONException e) {
+											// TODO Auto-generated catch block
+											e.printStackTrace();
+										}
+										 // showText(sb);
 									}
 						      }
+						      db.close();
 						}
 
 					}						
@@ -394,5 +430,27 @@ public class MainActivity extends Activity {
 	      }
 	    });
 	  }
+	
+	
+//	@SuppressWarnings("deprecation")
+//	public void UpdataAdapter()
+//	{
+//		// 获取数据库Phones的Cursor
+//		Cursor cur = dataBaseAdapter.fetchAllData();
+//
+//		if (cur != null && cur.getCount() >= 0)
+//		{
+//			// ListAdapter是ListView和后台数据的桥梁
+//			ListAdapter adapter = new SimpleCursorAdapter(this,
+//				android.R.layout.simple_list_item_2,
+//				cur,
+//				new String[] {dataBaseAdapter.KEY_TEXT, dataBaseAdapter.KEY_CREAT_TIME, 
+//					dataBaseAdapter.KEY_TAGS,dataBaseAdapter.KEY_GID,dataBaseAdapter.KEY_TIME,dataBaseAdapter.KEY_ID_NIM},
+//				new int[] { android.R.id.text1, android.R.id.text2 });
+//
+//			/* 将adapter添加到m_ListView中 */
+//			m_ListView.setAdapter(adapter);
+//		}
+//	}
 
 }
