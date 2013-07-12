@@ -19,6 +19,7 @@ import org.json.JSONObject;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException;
+import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.FileContent;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponse;
@@ -520,6 +521,36 @@ public class MainActivity extends Activity {
 		}
 		  return meta;
 	  }
+	  
+	  private static File trashFile(Drive service, String fileId) {
+		    try {
+		      return service.files().trash(fileId).execute();
+		    } catch (IOException e) {
+		    	e.printStackTrace();
+		    }
+		    return null;
+		  }
+	  
+	  private static File updateFile(Drive service, String fileId) {
+		    try {
+		      // First retrieve the file from the API.
+		      File file = service.files().get(fileId).execute();
+
+
+		      // File's new content.
+		      java.io.File fileContent = new java.io.File("");
+		      FileContent mediaContent = new FileContent(file.getMimeType(), fileContent);
+
+		      // Send the request to the API.
+		      File updatedFile = service.files().update(fileId, file, ByteArrayContent.fromString(file.getMimeType(), "content")).execute();
+
+		      return updatedFile;
+		    } catch (IOException e) {
+		    	e.printStackTrace();
+		      return null;
+		    }
+		  }
+
 	  
 	  
 	  //convert inputstream to stringbuilder
