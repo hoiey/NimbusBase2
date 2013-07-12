@@ -9,6 +9,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -22,6 +23,7 @@ import com.google.api.client.http.FileContent;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.client.util.DateTime;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.Drive.Children;
 import com.google.api.services.drive.Drive.Files;
@@ -61,6 +63,10 @@ public class MainActivity extends Activity {
 	private static final int REQUEST_ACCOUNT_PICKER = 1;
 	private static final int REQUEST_AUTHORIZATION = 2;
 	private static final int CAPTURE_IMAGE = 3;
+	private static final String FOLDER_MAIN = "NimbusBase";
+	private static final String FOLDER_NAME = "object";
+	private static String foldermain = null;
+	private static String folderId = null;
 	private GoogleAccountCredential credential;
 	private static Drive service;
 	private static Uri fileUri;
@@ -69,7 +75,9 @@ public class MainActivity extends Activity {
 	public TextView tv;
 	public Button listp;
 	
-	private String mFileId;
+	private String fileId ;
+	
+	
 	
 	DataBaseAdapter dataBaseAdapter;
 	
@@ -98,7 +106,6 @@ public class MainActivity extends Activity {
 		
    		dataBaseAdapter = new DataBaseAdapter(this);
 
-		
 		listp.setOnClickListener(new View.OnClickListener() {
 			
 			@Override
@@ -128,7 +135,8 @@ public class MainActivity extends Activity {
 	         if (accountName != null) {
 	           credential.setSelectedAccountName(accountName);
 	           service = getDriveService(credential);
-	           readFileByList();
+	           //readFileByList();
+	           checkFolder();
 	           //saveFileToDrive();
 	           //startCameraIntent();
 	           //readFileFromDrive();
@@ -152,6 +160,115 @@ public class MainActivity extends Activity {
 	     }
 	   
 	}
+	 
+	 private void checkFolder(){
+		  Thread t = new Thread(new Runnable() {
+			  @Override
+		      public void run() {
+					try {
+						Files.List request_1 = service.files().list().setQ("mimeType = 'application/vnd.google-apps.folder' and title = '"+FOLDER_MAIN+"' and 'root' in parents");
+						Map<String, File> textFiles_1 = new HashMap<String, File>();
+						
+						do {
+					      try {
+					        FileList files = request_1.execute();
+
+					        for (File file : files.getItems()) {
+					          textFiles_1.put(file.getId(), file);
+					        }
+					        request_1.setPageToken(files.getNextPageToken());
+					      } catch (IOException e) {
+					    	  e.printStackTrace();
+					      }
+						} while (request_1.getPageToken() != null && request_1.getPageToken().length() > 0);
+					
+						if(textFiles_1.isEmpty()){
+						  try {
+								foldermain=createPublicFolder(service,FOLDER_MAIN).getId();
+								
+								//File folder= service.files().get(foldermain).execute();
+								File body = new File();
+					            body.setTitle(FOLDER_NAME);
+					            body.setMimeType("application/vnd.google-apps.folder");
+					            body.setParents(Arrays.asList(new ParentReference().setId(foldermain)));
+					            File file3 = service.files().insert(body).execute();
+					            insertFileIntoFolder(service, foldermain, file3.getId());
+					            
+					  		  	Permission permission = new Permission();
+					  		  	permission.setValue("");
+					  		  	permission.setType("anyone");
+					  		  	permission.setRole("reader");
+					            
+					  		  	service.permissions().insert(file3.getId(), permission).execute();
+					            
+					            folderId = file3.getId();
+								
+								
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+						  
+						}
+					else{
+						for(Map.Entry<String, File> entry:textFiles_1.entrySet()){
+							File file= service.files().get(entry.getKey()).execute();
+							foldermain = file.getId();
+							Children.List request_2 = service.children().list(foldermain).setQ("mimeType = 'application/vnd.google-apps.folder' and title = '"+FOLDER_NAME+"'");
+							Map<String, ChildReference> textFiles_2 = new HashMap<String, ChildReference>();
+						
+						do {
+						      try {
+						        ChildList files = request_2.execute();
+
+						        for (ChildReference file1 : files.getItems()) {
+						          textFiles_2.put(file1.getId(), file1);
+						        }
+						        request_2.setPageToken(files.getNextPageToken());
+						      } catch (IOException e) {
+						    	  e.printStackTrace();
+						      }
+						} while (request_2.getPageToken() != null && request_2.getPageToken().length() > 0);
+						
+						if(textFiles_2.isEmpty()){
+							File body = new File();
+				            body.setTitle(FOLDER_NAME);
+				            body.setMimeType("application/vnd.google-apps.folder");
+				            body.setParents(Arrays.asList(new ParentReference().setId(foldermain)));
+				            File file3 = service.files().insert(body).execute();
+				            insertFileIntoFolder(service, foldermain, file3.getId());
+				            
+				  		  	Permission permission = new Permission();
+				  		  	permission.setValue("");
+				  		  	permission.setType("anyone");
+				  		  	permission.setRole("reader");
+				            
+				  		  	service.permissions().insert(file3.getId(), permission).execute();
+				            
+				            folderId = file3.getId();
+						}
+						else{
+							for(Map.Entry<String, ChildReference> entry2:textFiles_2.entrySet()){
+								File file1= service.files().get(entry2.getKey()).execute();
+								folderId = file1.getId();
+
+							}
+						}
+					}
+					
+					
+					}
+	  
+					
+				  
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			  } });
+		  t.start();
+			  
+	 }
 	 
 	 
 	  private void readFileFromDrive(){
@@ -185,7 +302,7 @@ public class MainActivity extends Activity {
 		      public void run() {
 				// TODO Auto-generated method stub
 				try {
-		        	Files.List  request_1 = service.files().list().setQ("mimeType = 'application/vnd.google-apps.folder' and title = 'tweetdiary'");
+		        	Files.List  request_1 = service.files().list().setQ("mimeType = 'application/vnd.google-apps.folder' and title = 'tweetdiary' and 'root' in parents");
 		        	Map<String, File> textFiles_1 = new HashMap<String, File>();
 		        	
 					do {
@@ -241,7 +358,7 @@ public class MainActivity extends Activity {
 											// TODO Auto-generated catch block
 											e.printStackTrace();
 										}
-										 // showText(sb);
+										  showText(sb);
 									}
 						      }
 						      db.close();
@@ -250,7 +367,11 @@ public class MainActivity extends Activity {
 					}						
 					
 			
-				} catch (IOException e) {
+				}
+				catch (UserRecoverableAuthIOException e) {
+					  startActivityForResult(e.getIntent(), REQUEST_AUTHORIZATION);
+				  }
+				catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -288,7 +409,7 @@ public class MainActivity extends Activity {
       public void run() {
         try {
           // File's binary content
-        	Files.List  request_1 = service.files().list().setQ("mimeType = 'application/vnd.google-apps.folder' and title = 'tweetdiary'");
+        	Files.List  request_1 = service.files().list().setQ("mimeType = 'application/vnd.google-apps.folder' and title = 'tweetdiary' and 'root' in parents");
         	Map<String, File> textFiles_1 = new HashMap<String, File>();
         	
 			do {
@@ -352,7 +473,7 @@ public class MainActivity extends Activity {
   }
 	
 
-	
+	//create a public Folder
 	private static File createPublicFolder(Drive service, String folderName) throws IOException {
 		  File body = new File();
 		  body.setTitle(folderName);
@@ -372,6 +493,7 @@ public class MainActivity extends Activity {
 		}
 	
 	
+	//insert a File into folder
 	  private static ChildReference insertFileIntoFolder(Drive service, String folderId, String fileId) {
 		    ChildReference newChild = new ChildReference();
 		    newChild.setId(fileId);
@@ -384,6 +506,23 @@ public class MainActivity extends Activity {
 		  }
 	  
 	  
+	  private Meta getMetaData(Drive service, String fileId){
+		  Meta meta = null;
+		  try {
+			File file = service.files().get(fileId).execute();
+			meta.setCreatedDate(file.getCreatedDate());
+			meta.setModifiedDate(file.getModifiedDate());
+			meta.setModifiedByMeDate(file.getModifiedByMeDate());
+			return meta;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		  return meta;
+	  }
+	  
+	  
+	  //convert inputstream to stringbuilder
 	  private StringBuilder inputStreamToStringBuilder(InputStream stream){
 			BufferedReader br = new BufferedReader(new InputStreamReader(stream));
 			StringBuilder sb = new StringBuilder();

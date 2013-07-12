@@ -4,9 +4,7 @@ import android.app.Activity;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
-import android.support.v4.widget.CursorAdapter;
-import android.support.v4.widget.SimpleCursorAdapter;
-import android.widget.ListAdapter;
+import android.widget.SimpleCursorAdapter;
 import android.widget.ListView;
 
 public class ListPage extends Activity{
@@ -37,11 +35,11 @@ public class ListPage extends Activity{
 		if (cur != null && cur.getCount() >= 0){
 			
 			@SuppressWarnings("deprecation")
-			ListAdapter	adapter= new SimpleCursorAdapter(this,
-					android.R.layout.simple_list_item_1,
+			SimpleCursorAdapter	adapter= new SimpleCursorAdapter(ListPage.this,
+					R.layout.list_item,
 					cur,
 					new String[] {DataBaseAdapter.KEY_TEXT, DataBaseAdapter.KEY_CREAT_TIME },
-					new int[] { android.R.id.text1, android.R.id.text2});
+					new int[] { R.id.my_text, R.id.my_time});
 	//, DataBaseAdapter.KEY_TAGS,DataBaseAdapter.KEY_GID,DataBaseAdapter.KEY_TIME,DataBaseAdapter.KEY_ID_NIM
 			list.setAdapter(adapter);
 			}
